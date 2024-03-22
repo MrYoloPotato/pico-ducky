@@ -15,13 +15,13 @@ import usb_hid
 from adafruit_hid.keyboard import Keyboard
 
 # comment out these lines for non_US keyboards
-from adafruit_hid.keyboard_layout_us import KeyboardLayoutUS as KeyboardLayout
-from adafruit_hid.keycode import Keycode
+#from adafruit_hid.keyboard_layout_us import KeyboardLayoutUS as KeyboardLayout
+#from adafruit_hid.keycode import Keycode
 
 # uncomment these lines for non_US keyboards
 # replace LANG with appropriate language
-#from keyboard_layout_win_LANG import KeyboardLayout
-#from keycode_win_LANG import Keycode
+from keyboard_layout_win_es import KeyboardLayout
+from keycode_win_es import Keycode
 
 duckyCommands = {
     'WINDOWS': Keycode.WINDOWS, 'GUI': Keycode.GUI,
@@ -75,6 +75,33 @@ def runScriptLine(line):
 def sendString(line):
     layout.write(line)
 
+# LOCALE function from @andreasbrett
+def loadLocale(locale):
+    global KeyboardLayout, Keycode, layout
+    if locale.upper() == "US":
+        moduleKeyboardLayout = __import__(
+            "adafruit_hid.keyboard_layout_us", globals(), locals(), ["KeyboardLayoutUS"]
+        )
+        moduleKeycode = __import__(
+            "adafruit_hid.keycode", globals(), locals(), ["Keycode"]
+        )
+        KeyboardLayout = moduleKeyboardLayout.KeyboardLayoutUS
+        Keycode = moduleKeycode.Keycode
+    else:
+        moduleKeyboardLayout = __import__(
+            "keyboard_layout_win_" + locale.lower(),
+            globals(),
+            locals(),
+            ["KeyboardLayout"],
+        )
+        moduleKeycode = __import__(
+            "keycode_win_" + locale.lower(), globals(), locals(), ["Keycode"]
+        )
+        KeyboardLayout = moduleKeyboardLayout.KeyboardLayout
+        Keycode = moduleKeycode.Keycode
+    layout = KeyboardLayout(kbd)
+
+
 def parseLine(line):
     global defaultDelay
     if(line[0:3] == "REM"):
@@ -90,26 +117,15 @@ def parseLine(line):
         runScript(line[7:])
     elif(line[0:13] == "DEFAULT_DELAY"):
         defaultDelay = int(line[14:]) * 10
-    elif(line[0:12] == "DEFAULTDELAY"):
+    elif(line[0:12] == "DEFAULTDELAY"): 
         defaultDelay = int(line[13:]) * 10
+    elif(line[0:6] == "LOCALE"):
+        loadLocale(line[7:])
     elif(line[0:3] == "LED"):
         if(led.value == True):
             led.value = False
         else:
             led.value = True
-    elif(line[0:21] == "WAIT_FOR_BUTTON_PRESS"):
-        button_pressed = False
-        # NOTE: we don't use assincio in this case because we want to block code execution
-        while not button_pressed:
-            button1.update()
-
-            button1Pushed = button1.fell
-            button1Released = button1.rose
-            button1Held = not button1.value
-
-            if(button1Pushed):
-                print("Button 1 pushed")
-                button_pressed = True
     else:
         newScriptLine = convertLine(line)
         runScriptLine(newScriptLine)
@@ -118,10 +134,8 @@ kbd = Keyboard(usb_hid.devices)
 layout = KeyboardLayout(kbd)
 
 
-
-
 #init button
-button1_pin = DigitalInOut(GP22) # defaults to input
+button1_pin = DigitalInOut(GP8) # defaults to input
 button1_pin.pull = Pull.UP      # turn on internal pull-up resistor
 button1 =  Debouncer(button1_pin)
 
